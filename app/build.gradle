@@ -1,0 +1,320 @@
+apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
+apply plugin: 'org.jetbrains.kotlin.plugin.serialization'
+
+// D8/R8'i devre dışı bırak
+ext {
+    android_enableR8 = false
+    android_enableD8 = false
+}
+
+// Doğrudan gradle.properties'e yaz
+System.setProperty("android.enableR8", "false")
+System.setProperty("android.enableD8", "false")
+System.setProperty("android.enableR8.libraries", "false")
+
+android {
+    namespace 'com.aihackathonkarisacikartim.god2'
+    compileSdk 34
+    
+    defaultConfig {
+        applicationId "com.aihackathonkarisacikartim.god2"
+        minSdk 26
+        targetSdk 34
+        versionCode 2
+        versionName "1.0.1"
+        
+        // MultiDex yapılandırması
+        multiDexEnabled true
+        multiDexKeepProguard file('multidex-config.pro')
+        
+        // Load API keys from local.properties
+        Properties properties = new Properties()
+        properties.load(project.rootProject.file('local.properties').newDataInputStream())
+        
+        // Add API keys to BuildConfig
+        buildConfigField "String", "MUSIC_API_KEY", "\"${properties.getProperty('MUSIC_API_KEY', '')}\""
+        buildConfigField "String", "MUSIC_API_BASE_URL", "\"${properties.getProperty('MUSIC_API_BASE_URL', '')}\""
+        buildConfigField "String", "SUPABASE_URL", "\"${properties.getProperty('SUPABASE_URL', '')}\""
+        buildConfigField "String", "SUPABASE_ANON_KEY", "\"${properties.getProperty('SUPABASE_ANON_KEY', '')}\""
+        
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        vectorDrawables {
+            useSupportLibrary = true
+        }
+    }
+    
+    // Load keystore properties securely from local.properties
+    def localPropertiesFile = rootProject.file("local.properties")
+    def localProperties = new Properties()
+    if (localPropertiesFile.exists()) {
+        localProperties.load(new FileInputStream(localPropertiesFile))
+    }
+    
+    signingConfigs {
+        release {
+            if (localPropertiesFile.exists() && localProperties['keystore.file'] != null) {
+                try {
+                    storeFile file(localProperties['keystore.file'])
+                    storePassword localProperties['keystore.password']
+                    keyAlias localProperties['key.alias']
+                    keyPassword localProperties['key.password']
+                } catch (Exception e) {
+                    println "Warning: Keystore configuration failed: ${e.message}"
+                    // Use debug signing as fallback - NO HARDCODED PASSWORDS
+                    signingConfig = signingConfigs.debug
+                }
+            } else {
+                // Use debug signing if keystore not configured
+                println "Warning: Release keystore not configured. Using debug signing."
+                signingConfig = signingConfigs.debug
+            }
+        }
+        
+        debug {
+            // Debug için Android'in default debug keystore'unu kullan
+            // Bu her zaman çalışır
+        }
+    }
+    
+    buildTypes {
+        release {
+            // Production ayarları - GÜVENLİK İÇİN ÖNEMLİ
+            minifyEnabled true           // ProGuard aktif - kod koruması ve optimizasyon
+            shrinkResources true         // Kullanılmayan kaynakları kaldır - APK boyutunu küçültür
+            
+            // RELEASE BUILD'DE DEBUG KAPALI - GÜVENLİK İÇİN KRİTİK
+            debuggable false
+            
+            // ProGuard kuralları
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
+        }
+        debug {
+            // Debug yapılandırması aynı kaldı
+        }
+    }
+    
+    // Dex birleştirme optimizasyonları
+    dexOptions {
+        jumboMode true
+        keepRuntimeAnnotatedClasses false
+        preDexLibraries false
+        incremental false
+        maxProcessCount 1 // Tek bir işlemde DEX üret
+        javaMaxHeapSize "4g"
+        
+        // DEX çakışmalarını önlemek için özel parametreler
+        additionalParameters = [
+            "--no-desugaring",
+            "--no-optimize"
+        ]
+    }
+    
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+    
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
+    
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.4"
+    }
+    
+    // Paketleme seçenekleri R sınıflarına odaklandı
+    packagingOptions {
+        resources {
+            excludes += [
+                '/META-INF/{AL2.0,LGPL2.1}',
+                'META-INF/versions/**',
+                '**/kotlin-reflect/**',
+                '**/*.kotlin_module',
+                '**/*.kotlin_builtins',
+                // R sınıfları için özel dışlamalar
+                'com/aihackathonkarisacikartim/god2/R\$color.class',
+                'com/aihackathonkarisacikartim/god2/R\$color.dex'
+            ]
+            
+            // R sınıfları için çözüm (genişletildi)
+            pickFirsts += [
+                '**/R.class',
+                '**/R\$*.class',
+                '**/R\$color.class',
+                '**/R\$drawable.class',
+                '**/R\$id.class',
+                '**/R\$layout.class',
+                '**/R\$string.class',
+                '**/R\$style.class',
+                // Tüm R alt sınıfları için ek kurallar
+                '**/R\$attr.class',
+                '**/R\$bool.class',
+                '**/R\$dimen.class', 
+                '**/R\$integer.class',
+                '**/R\$anim.class',
+                '**/R\$raw.class',
+                '**/R\$menu.class',
+                // JAR çakışmaları için
+                '**/*.jar:classes.dex'
+            ]
+            
+            merges += [
+                "META-INF/services/**"
+            ]
+            
+            jniLibs {
+                useLegacyPackaging = true
+            }
+        }
+    }
+    
+    lintOptions {
+        abortOnError false
+        disable 'DuplicateDefinition'
+    }
+}
+
+// DEX dosyalarını temizleme görevi
+task cleanDexFiles(type: Delete) {
+    doLast {
+        println "Cleaning DEX files..."
+        // R\$color.dex dosyalarını bul ve sil
+        fileTree(dir: "$buildDir", includes: ['**/R\$color.dex']).each { file ->
+            println "Deleting: ${file.absolutePath}"
+            file.delete()
+        }
+        
+        // Sorunlu JAR dosyasını bul ve sil
+        fileTree(dir: "$buildDir/intermediates/project_dex_archive/release/out", 
+                 includes: ['**/*f8299459a54e3edbbf477c274fef11e0ae2482395090da59fe2d820aba6c1b26_3.jar']).each { file ->
+            println "Deleting problematic JAR: ${file.absolutePath}"
+            file.delete()
+        }
+        
+        // Tüm DEX arşivlerini temizle
+        delete "$buildDir/intermediates/project_dex_archive"
+        delete "$buildDir/intermediates/dex"
+    }
+}
+
+// main-dex-list dosyasını oluştur
+task createMainDexList {
+    doLast {
+        def mainDexList = file('multidex-main-dex-list.txt')
+        mainDexList.createNewFile()
+        mainDexList.text = """
+# Temel sınıfları koru
+com/aihackathonkarisacikartim/god2/MainActivity.class
+androidx/multidex/**.class
+
+# R sınıflarını ana DEX'ten dışla
+-com/aihackathonkarisacikartim/god2/R.class
+-com/aihackathonkarisacikartim/god2/R\$*.class
+-com/aihackathonkarisacikartim/god2/R\$color.class
+"""
+    }
+}
+
+// Derleme öncesi temizlik
+tasks.whenTaskAdded { task ->
+    if (task.name.contains('compile') || task.name.contains('merge') || task.name.contains('dex')) {
+        task.dependsOn cleanDexFiles
+    }
+}
+
+// Kritik DEX görevlerine hook ekle
+afterEvaluate {
+    tasks.matching { it.name.contains("mergeDex") }.each { task ->
+        task.dependsOn cleanDexFiles
+        task.doFirst {
+            cleanDexFiles.execute()
+        }
+    }
+    
+    tasks.named("preBuild").configure {
+        dependsOn createMainDexList
+    }
+}
+
+// Kotlin-reflect'i tüm bağımlılıklardan çıkar
+configurations {
+    all {
+        exclude group: 'org.jetbrains.kotlin', module: 'kotlin-reflect'
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    
+    // MultiDex desteği
+    implementation 'androidx.multidex:multidex:2.0.1'
+    
+    // Kotlin
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.20"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.20"
+    
+    // Security library for EncryptedSharedPreferences
+    implementation 'androidx.security:security-crypto:1.1.0-alpha06'
+    
+    // Core ve UI
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.compose.ui:ui:1.5.1'
+    implementation 'androidx.compose.material:material:1.5.1'
+    implementation 'androidx.compose.material3:material3:1.1.2'
+    implementation 'androidx.compose.material3:material3-window-size-class:1.1.2'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.6.2'
+    implementation 'androidx.activity:activity-compose:1.8.0'
+    
+    // AppCompat kütüphanesi
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    
+    // Diğer bağımlılıklar
+    implementation 'androidx.compose.ui:ui-tooling-preview:1.5.1'
+    debugImplementation 'androidx.compose.ui:ui-tooling:1.5.1'
+    releaseImplementation 'androidx.compose.ui:ui-tooling:1.5.1'
+    
+    implementation 'androidx.datastore:datastore-preferences:1.0.0'
+    implementation 'androidx.datastore:datastore-preferences-core:1.0.0'
+    
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    
+    implementation "io.coil-kt:coil-compose:2.4.0"
+    
+    implementation 'io.ktor:ktor-client-android:2.3.7'
+    implementation 'io.ktor:ktor-client-content-negotiation:2.3.7'
+    implementation 'io.ktor:ktor-serialization-kotlinx-json:2.3.7'
+    implementation 'io.ktor:ktor-client-logging:2.3.3'
+    
+    implementation 'androidx.navigation:navigation-compose:2.7.5'
+    
+    implementation 'androidx.compose.material:material-icons-extended:1.5.1'
+    
+    implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+    
+    implementation 'androidx.media3:media3-exoplayer:1.2.0'
+    implementation 'androidx.media3:media3-ui:1.2.0'
+    implementation 'androidx.media3:media3-common:1.2.0'
+    implementation 'androidx.media3:media3-session:1.2.0'
+    
+    def supabaseVersion = "2.1.5" // Güncel sürüm
+    implementation "io.github.jan-tennert.supabase:supabase-kt:$supabaseVersion"
+    implementation "io.github.jan-tennert.supabase:postgrest-kt:$supabaseVersion"
+    implementation "io.github.jan-tennert.supabase:gotrue-kt:$supabaseVersion"
+    implementation "io.github.jan-tennert.supabase:storage-kt:$supabaseVersion"
+    implementation "io.github.jan-tennert.supabase:realtime-kt:$supabaseVersion"
+    implementation "io.github.jan-tennert.supabase:functions-kt:$supabaseVersion"
+    
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+    androidTestImplementation 'androidx.compose.ui:ui-test-junit4:1.5.1'
+    debugImplementation 'androidx.compose.ui:ui-tooling:1.5.1'
+} 

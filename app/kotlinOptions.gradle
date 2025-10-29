@@ -1,0 +1,23 @@
+// Kotlin derleme seçenekleri için özel yapılandırma
+android {
+    kotlinOptions {
+        jvmTarget = '17'
+        // Metadata sürüm kontrollerini devre dışı bırak
+        freeCompilerArgs += [
+            "-Xskip-metadata-version-check",
+            "-Xskip-prerelease-check",
+            "-Xsuppress-version-warnings",
+            "-P",
+            "plugin:androidx.compose.compiler.plugins.kotlin:suppressKotlinVersionCompatibilityCheck=true"
+        ]
+    }
+}
+
+tasks.configureEach { task ->
+    if (task.name == "preBuild") {
+        task.doFirst {
+            System.setProperty("kotlin.suppressMissingDependencyAnnotationWarning", "true")
+            System.setProperty("kotlin.daemon.jvmargs", "-Xskip-metadata-version-check")
+        }
+    }
+} 

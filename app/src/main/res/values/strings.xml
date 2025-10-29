@@ -1,0 +1,40 @@
+<resources>
+    <string name="app_name">OctaAI</string>
+    <string name="select_language">Dil Seçiniz / Select Language</string>
+    <string name="continue_text">Devam Et / Continue</string>
+    
+    <!-- Genel metinler -->
+    <string name="welcome">Hoş Geldiniz</string>
+    <string name="login">Giriş Yap</string>
+    <string name="signup">Kaydol</string>
+    <string name="forgot_password">Şifremi Unuttum</string>
+    <string name="email">E-posta</string>
+    <string name="password">Şifre</string>
+    <string name="username">Kullanıcı Adı</string>
+    <string name="confirm_password">Şifreyi Onayla</string>
+    <string name="submit">Gönder</string>
+    <string name="cancel">İptal</string>
+    
+    <!-- Müzik oluşturma ekranı -->
+    <string name="create_music">Müzik Oluştur</string>
+    <string name="genre">Tür</string>
+    <string name="prompt">Komut</string>
+    <string name="vocal_mode">Vokal Modu</string>
+    <string name="ai_generate">AI ile Müzik Üret</string>
+    <string name="generate">Oluştur</string>
+    <string name="library">Kütüphane</string>
+    
+    <!-- Müzik çalar ekranı -->
+    <string name="now_playing">Şimdi Çalıyor</string>
+    <string name="no_song_selected">Şarkı Seçilmedi</string>
+    
+    <!-- Profil ekranı -->
+    <string name="profile">Profil</string>
+    <string name="settings">Ayarlar</string>
+    <string name="logout">Çıkış Yap</string>
+    <string name="membership">Üyelik</string>
+    <string name="about">Hakkında</string>
+    
+    <!-- Diğer -->
+    <string name="slogan">SES TEKNOLOJİNİN SINIRLARI</string>
+</resources>

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OctaAI</string>
+    <!-- Language selection screen -->
+    <string name="select_language">Select Language</string>
+    <string name="continue_text">Continue</string>
+    
+    <!-- General texts -->
+    <string name="welcome">Welcome</string>
+    <string name="login">Login</string>
+    <string name="signup">Sign Up</string>
+    <string name="forgot_password">Forgot Password</string>
+    <string name="email">Email</string>
+    <string name="password">Password</string>
+    <string name="username">Username</string>
+    <string name="confirm_password">Confirm Password</string>
+    <string name="submit">Submit</string>
+    <string name="cancel">Cancel</string>
+    
+    <!-- Music creation screen -->
+    <string name="create_music">Create Music</string>
+    <string name="genre">Genre</string>
+    <string name="prompt">Prompt</string>
+    <string name="vocal_mode">Vocal Mode</string>
+    <string name="ai_generate">Generate Music with AI</string>
+    <string name="generate">Generate</string>
+    <string name="library">Library</string>
+    
+    <!-- Music player screen -->
+    <string name="now_playing">Now Playing</string>
+    <string name="no_song_selected">No Song Selected</string>
+    
+    <!-- Profile screen -->
+    <string name="profile">Profile</string>
+    <string name="settings">Settings</string>
+    <string name="logout">Logout</string>
+    <string name="membership">Membership</string>
+    <string name="about">About</string>
+    
+    <!-- Other -->
+    <string name="slogan">SOUND TECHNOLOGY BOUNDARIES</string>
+</resources> 

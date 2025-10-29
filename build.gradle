@@ -1,0 +1,28 @@
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.0.0'
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.20'
+        classpath 'org.jetbrains.kotlin:kotlin-serialization:1.9.20'
+    }
+}
+
+// Tüm projeler için ek konfigürasyonlar
+allprojects {
+    // Kotlin'in aynı sürümünü kullan
+    plugins.withId("org.jetbrains.kotlin.android") {
+        tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+            kotlinOptions {
+                jvmTarget = JavaVersion.VERSION_17
+                freeCompilerArgs += [
+                    "-Xskip-metadata-version-check",
+                    "-Xskip-prerelease-check",
+                    "-Xsuppress-version-warnings"
+                ]
+            }
+        }
+    }
+} 

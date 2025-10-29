@@ -1,0 +1,73 @@
+package com.aihackathonkarisacikartim.god2
+
+import android.app.Application
+import android.content.Context
+import androidx.multidex.MultiDex
+import com.network.NetworkUtils
+import com.settings.LanguageManager
+import com.settings.SessionManager
+
+class OctaApplication : Application() {
+    
+    companion object {
+        // R8 sınıf çakışması sorununu çözmek için önceden yüklenecek sınıflar
+        private val PRELOAD_CLASSES = arrayOf(
+            "kotlin.reflect.jvm.internal.impl.serialization.deserialization.builtins.BuiltInsResourceLoader",
+            "kotlin.reflect.jvm.internal.ReflectionFactoryImpl",
+            "kotlin.reflect.full.KClasses"
+        )
+    }
+    
+    // Tek global dil yöneticisi örneği
+    lateinit var languageManager: LanguageManager
+        private set
+    
+    // İnternet bağlantısı yöneticisi
+    lateinit var networkUtils: NetworkUtils
+        private set
+        
+    // Oturum yöneticisi
+    lateinit var sessionManager: SessionManager
+        private set
+    
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(base)
+        // MultiDex'i başlat
+        MultiDex.install(this)
+        
+        // R8 sınıf çakışma sorunlarını önlemek için sınıfları önceden yükle
+        preloadReflectionClasses()
+    }
+    
+    override fun onCreate() {
+        super.onCreate()
+        
+        // Dil yöneticisini başlat
+        languageManager = LanguageManager(this)
+        languageManager.applyCurrentLanguage()
+        
+        // Ağ yöneticisini başlat
+        networkUtils = NetworkUtils(this)
+        
+        // Oturum yöneticisini başlat
+        sessionManager = SessionManager(this)
+    }
+    
+    /**
+     * R8/Proguard tarafından kaldırılabilecek veya çakışabilecek 
+     * Kotlin Reflection sınıflarını önceden yükler
+     */
+    private fun preloadReflectionClasses() {
+        try {
+            for (className in PRELOAD_CLASSES) {
+                try {
+                    Class.forName(className)
+                } catch (e: Exception) {
+                    // Belirli bir sınıfı yükleyememe, sürdür
+                }
+            }
+        } catch (e: Exception) {
+            // Genel hata yakalama
+        }
+    }
+} 

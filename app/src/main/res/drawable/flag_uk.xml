@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="100dp"
+    android:height="67dp"
+    android:viewportWidth="1200"
+    android:viewportHeight="800">
+
+    <!-- Mavi arka plan -->
+    <path
+        android:fillColor="#012169"
+        android:pathData="M0,0h1200v800h-1200z" />
+
+    <!-- Beyaz Çapraz (St. Andrew's Cross) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M0,0L1200,800M1200,0L0,800" />
+
+    <!-- Diagonal kırmızı çapraz (St. Patrick's Cross) -->
+    <path
+        android:fillColor="#C8102E"
+        android:pathData="M0,0L0,80L1120,800L1200,800L1200,720L80,0L0,0Z
+        M1200,0L1200,80L80,800L0,800L0,720L1120,0L1200,0Z" />
+
+    <!-- Yatay ve Dikey Beyaz (St. George's Cross) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M500,0h200v800h-200z
+        M0,300h1200v200h-1200z" />
+
+    <!-- Yatay ve Dikey Kırmızı (St. George's Cross) -->
+    <path
+        android:fillColor="#C8102E"
+        android:pathData="M550,0h100v800h-100z
+        M0,350h1200v100h-1200z" />
+
+</vector> 

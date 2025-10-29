@@ -1,0 +1,708 @@
+package com.ui.player
+
+import android.net.Uri
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.ui.NeonPlayer
+import java.io.File
+import kotlinx.coroutines.*
+import android.content.pm.PackageManager
+import android.content.res.Configuration
+import android.widget.Toast
+import androidx.core.content.ContextCompat
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import kotlinx.coroutines.delay
+import com.data.model.AudioModel
+import com.ui.player.PlayerViewModel
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.random.Random
+
+/**
+ * NeonPlayer UI'ını gerçek media player işlevselliğiyle birleştiren ekran
+ */
+@Composable
+fun NeonPlayerScreen(
+    modifier: Modifier = Modifier,
+    viewModel: PlayerViewModel = viewModel(),
+    songTitle: String? = null,
+    artistName: String? = null,
+    albumCoverUrl: String? = null,
+    mediaUri: Uri? = null,
+    onBackClick: (() -> Unit)? = null
+) {
+    val context = LocalContext.current
+    
+    // ExoPlayer durumlarını izlemek için state'ler
+    val isPlaying = remember { mutableStateOf(false) }
+    val currentPosition = remember { mutableStateOf(0L) }
+    val duration = remember { mutableStateOf(0L) }
+    
+    // Animasyon
+    val albumArtScale by animateFloatAsState(
+        targetValue = if (isPlaying.value) 1f else 0.95f,
+        animationSpec = tween(500, easing = FastOutSlowInEasing),
+        label = "albumScale"
+    )
+    
+    // Oynatıcı durumunu güncellemek için sonsuz LaunchedEffect
+    LaunchedEffect(true) {
+        while (isActive) {
+            isPlaying.value = viewModel.exoPlayer.isPlaying
+            currentPosition.value = viewModel.exoPlayer.currentPosition
+            duration.value = viewModel.exoPlayer.duration
+            delay(500) // Her 500ms'de bir güncellemeleri kontrol et
+        }
+    }
+    
+    // Dışarıdan verilen şarkı bilgisi varsa, bu şarkıyı oynat
+    LaunchedEffect(mediaUri) {
+        if (mediaUri != null && songTitle != null) {
+            // MediaItem oluştur ve ExoPlayer'a ayarla
+            val mediaItem = MediaItem.fromUri(mediaUri)
+            viewModel.exoPlayer.setMediaItem(mediaItem)
+            
+            // Hazırla ve çal
+            viewModel.exoPlayer.prepare()
+            viewModel.exoPlayer.play()
+        }
+    }
+    
+    // Şimşek efektleri için animasyonlar
+    var lightning1Alpha by remember { mutableStateOf(0f) }
+    var lightning2Alpha by remember { mutableStateOf(0f) }
+    var lightning3Alpha by remember { mutableStateOf(0f) }
+    
+    // Neon parıltı efekti
+    val glowAlpha by animateFloatAsState(
+        targetValue = if (isPlaying.value) 0.7f else 0.4f,
+        animationSpec = tween(2000, easing = LinearEasing),
+        label = "glowAlpha"
+    )
+    
+    // Şimşek animasyonunu başlat
+    LaunchedEffect(true) {
+        while (true) {
+            // Birinci şimşek - mavi
+            delay(Random.nextLong(1800, 4500))
+            lightning1Alpha = 0.8f
+            delay(80)
+            lightning1Alpha = 0.3f
+            delay(30)
+            lightning1Alpha = 0.6f
+            delay(50)
+            lightning1Alpha = 0f
+            
+            // İkinci şimşek - turkuaz
+            delay(Random.nextLong(900, 2800))
+            lightning2Alpha = 0.7f
+            delay(120)
+            lightning2Alpha = 0.2f
+            delay(40)
+            lightning2Alpha = 0.5f
+            delay(70)
+            lightning2Alpha = 0f
+            
+            // Üçüncü şimşek - mor
+            delay(Random.nextLong(1500, 5000))
+            lightning3Alpha = 0.9f
+            delay(100)
+            lightning3Alpha = 0.4f
+            delay(50)
+            lightning3Alpha = 0.7f
+            delay(80)
+            lightning3Alpha = 0f
+        }
+    }
+    
+    // Şimşek konumları için değerler
+    val lightning1Paths = remember { generateLightningPaths(6, 1.2f) }
+    val lightning2Paths = remember { generateLightningPaths(5, 0.8f) }
+    val lightning3Paths = remember { generateLightningPaths(7, 1.5f) }
+    
+    // Neon gradient arka plan
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color(0xFF050505),
+                        Color(0xFF101020),
+                        Color(0xFF050505)
+                    )
+                )
+            )
+    ) {
+        // Şimşek animasyonu
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .alpha(0.8f)
+        ) {
+            // Neon parıltı arka planı
+            if (isPlaying.value) {
+                // Müzik çalarken titreşen bir ışık halkası
+                val radius = size.minDimension * 0.4f
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            Color(0x40104080),
+                            Color(0x10104080),
+                            Color.Transparent
+                        ),
+                        center = Offset(size.width / 2, size.height / 2),
+                        radius = radius * (0.9f + (glowAlpha - 0.4f) * 0.2f)
+                    ),
+                    center = Offset(size.width / 2, size.height / 2),
+                    radius = radius
+                )
+            }
+            
+            // İlk şimşek seti - mavi
+            if (lightning1Alpha > 0) {
+                for (path in lightning1Paths) {
+                    // Neon parıltı efekti
+                    drawPath(
+                        path = path,
+                        color = Color(0x4080C7FF).copy(alpha = lightning1Alpha * 0.3f),
+                        style = Stroke(width = 6.dp.toPx(), cap = StrokeCap.Round),
+                        blendMode = BlendMode.Screen
+                    )
+                    
+                    // Ana şimşek çizgisi
+                    drawPath(
+                        path = path,
+                        color = Color(0xFF80C7FF).copy(alpha = lightning1Alpha),
+                        style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round),
+                        blendMode = BlendMode.Screen
+                    )
+                }
+            }
+            
+            // İkinci şimşek seti - turkuaz
+            if (lightning2Alpha > 0) {
+                for (path in lightning2Paths) {
+                    // Neon parıltı efekti
+                    drawPath(
+                        path = path,
+                        color = Color(0x4080FFFC).copy(alpha = lightning2Alpha * 0.3f),
+                        style = Stroke(width = 7.dp.toPx(), cap = StrokeCap.Round),
+                        blendMode = BlendMode.Screen
+                    )
+                    
+                    // Ana şimşek çizgisi
+                    drawPath(
+                        path = path,
+                        color = Color(0xFF80FFFC).copy(alpha = lightning2Alpha),
+                        style = Stroke(width = 2.5dp.toPx(), cap = StrokeCap.Round),
+                        blendMode = BlendMode.Screen
+                    )
+                }
+            }
+            
+            // Üçüncü şimşek seti - mor
+            if (lightning3Alpha > 0) {
+                for (path in lightning3Paths) {
+                    // Neon parıltı efekti
+                    drawPath(
+                        path = path,
+                        color = Color(0x40A080FF).copy(alpha = lightning3Alpha * 0.3f),
+                        style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round),
+                        blendMode = BlendMode.Screen
+                    )
+                    
+                    // Ana şimşek çizgisi
+                    drawPath(
+                        path = path,
+                        color = Color(0xFFA080FF).copy(alpha = lightning3Alpha),
+                        style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round),
+                        blendMode = BlendMode.Screen
+                    )
+                }
+            }
+        }
+        
+        // Görünümü karartmak için hafif bir katman
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.5f))
+        )
+        
+        // Geri butonu
+        if (onBackClick != null) {
+            IconButton(
+                onClick = onBackClick,
+                modifier = Modifier
+                    .padding(16.dp)
+                    .align(Alignment.TopStart)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Geri",
+                    tint = Color.White
+                )
+            }
+        }
+        
+        // Oynatıcı içeriği
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Spacer(modifier = Modifier.height(56.dp)) // Geri düğmesi için boşluk
+            
+            // Albüm kapağı
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                // Albüm kapağı arkaplan parıltısı
+                if (!albumCoverUrl.isNullOrEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .size(300.dp)
+                            .blur(20.dp)
+                            .alpha(glowAlpha * 0.5f)
+                    ) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(albumCoverUrl)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+                
+                // Albüm kapağı resmi
+                Box(
+                    modifier = Modifier
+                        .size(280.dp)
+                        .graphicsLayer {
+                            scaleX = albumArtScale
+                            scaleY = albumArtScale
+                            shadowElevation = 16f
+                        }
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    Color(0xFF303045),
+                                    Color(0xFF101025)
+                                )
+                            )
+                        )
+                ) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(albumCoverUrl)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = "Albüm Kapağı",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    
+                    // Eğer albüm kapağı yoksa müzik notu ikonu göster
+                    if (albumCoverUrl.isNullOrEmpty()) {
+                        Icon(
+                            imageVector = Icons.Default.MusicNote,
+                            contentDescription = null,
+                            tint = Color(0xFF3F9BF9),
+                            modifier = Modifier
+                                .size(100.dp)
+                                .align(Alignment.Center)
+                        )
+                    }
+                    
+                    // Müzik çalarken dış kenar parıltısı
+                    if (isPlaying.value) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .border(
+                                    width = 1.5.dp,
+                                    color = Color(0xFF3F9BF9),
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                        )
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            // Şarkı bilgileri
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Şarkı adı
+                Text(
+                    text = songTitle ?: "Bilinmeyen Şarkı",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = Color.White,
+                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                // Sanatçı adı
+                Text(
+                    text = artistName ?: "Bilinmeyen Sanatçı",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White.copy(alpha = 0.7f),
+                    textAlign = TextAlign.Center
+                )
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                // İlerleme çubuğu ve süre bilgileri
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Süre bilgileri
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = formatDuration(currentPosition.value),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.7f)
+                        )
+                        
+                        Text(
+                            text = formatDuration(duration.value),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.7f)
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(4.dp))
+                    
+                    // İlerleme çubuğu
+                    var isSeeking by remember { mutableStateOf(false) }
+                    var seekPosition by remember { mutableStateOf(0f) }
+                    
+                    Box(modifier = Modifier
+                        .fillMaxWidth()
+                        .height(36.dp)
+                        .padding(vertical = 8.dp)
+                    ) {
+                        // İlerleme arkaplanı
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(4.dp)
+                                .background(
+                                    color = Color.White.copy(alpha = 0.15f),
+                                    shape = RoundedCornerShape(4.dp)
+                                )
+                                .align(Alignment.Center)
+                        )
+                        
+                        // İlerleme çubuğu
+                        val progress = if (isSeeking) {
+                            seekPosition
+                        } else {
+                            if (duration.value > 0) currentPosition.value.toFloat() / duration.value.toFloat() else 0f
+                        }
+                        
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(progress)
+                                .height(4.dp)
+                                .background(
+                                    brush = Brush.horizontalGradient(
+                                        colors = listOf(
+                                            Color(0xFF3F9BF9),
+                                            Color(0xFF8A2BE2)
+                                        )
+                                    ),
+                                    shape = RoundedCornerShape(4.dp)
+                                )
+                                .align(Alignment.CenterStart)
+                        )
+                        
+                        // Dokunma alanı
+                        Slider(
+                            value = progress,
+                            onValueChange = { newValue ->
+                                isSeeking = true
+                                seekPosition = newValue
+                            },
+                            onValueChangeFinished = {
+                                isSeeking = false
+                                val newPosition = (seekPosition * duration.value).toLong()
+                                viewModel.exoPlayer.seekTo(newPosition)
+                            },
+                            colors = SliderDefaults.colors(
+                                thumbColor = Color(0xFF3F9BF9),
+                                activeTrackColor = Color.Transparent,
+                                inactiveTrackColor = Color.Transparent
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+                
+                // Küçük kontrol bilgilerini ekleyin
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // İleri sarma ipucu
+                    Text(
+                        text = "İleri/geri sarmak için kaydırın",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.5f),
+                        textAlign = TextAlign.Center
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                // Çalma kontrolleri
+                Row(
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Önceki şarkı
+                    IconButton(
+                        onClick = { viewModel.exoPlayer.seekToPrevious() },
+                        modifier = Modifier
+                            .size(50.dp)
+                            .background(
+                                color = Color(0xFF202030),
+                                shape = CircleShape
+                            )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SkipPrevious,
+                            contentDescription = "Önceki",
+                            tint = Color.White,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                    
+                    // Oynat/Duraklat
+                    IconButton(
+                        onClick = {
+                            if (viewModel.exoPlayer.isPlaying) {
+                                viewModel.exoPlayer.pause()
+                            } else {
+                                viewModel.exoPlayer.play()
+                            }
+                        },
+                        modifier = Modifier
+                            .size(70.dp)
+                            .background(
+                                color = Color(0xFF3F9BF9),
+                                shape = CircleShape
+                            )
+                    ) {
+                        Icon(
+                            imageVector = if (isPlaying.value) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (isPlaying.value) "Duraklat" else "Oynat",
+                            tint = Color.White,
+                            modifier = Modifier.size(40.dp)
+                        )
+                    }
+                    
+                    // Sonraki şarkı
+                    IconButton(
+                        onClick = { viewModel.exoPlayer.seekToNext() },
+                        modifier = Modifier
+                            .size(50.dp)
+                            .background(
+                                color = Color(0xFF202030),
+                                shape = CircleShape
+                            )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SkipNext,
+                            contentDescription = "Sonraki",
+                            tint = Color.White,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(48.dp)) // Alt tarafta boşluk
+        }
+    }
+}
+
+/**
+ * Rastgele şimşek yolu oluşturur
+ */
+private fun generateLightningPaths(count: Int, intensity: Float = 1.0f): List<Path> {
+    val paths = mutableListOf<Path>()
+    
+    repeat(count) {
+        val path = Path()
+        
+        // Rastgele başlangıç noktası (üstten)
+        val startX = Random.nextFloat() * 1000
+        path.moveTo(startX, 0f)
+        
+        var currentX = startX
+        var currentY = 0f
+        
+        // Şimşeğin zigzag kollarını oluşturma
+        val segments = Random.nextInt(5, 15)
+        repeat(segments) {
+            val angleVariation = Random.nextFloat() * 0.8f + 0.6f // 0.6 - 1.4 arası
+            // İntensiteye göre daha uzun veya daha kısa şimşekler
+            val newX = currentX + (Random.nextFloat() - 0.5f) * 200 * angleVariation * intensity
+            val newY = currentY + Random.nextFloat() * 100 * (1 + it / segments.toFloat()) * intensity
+            
+            path.lineTo(newX, newY)
+            
+            currentX = newX
+            currentY = newY
+            
+            // Bazen şimşekten yan dallar oluştur - intensiteye göre daha çok dal
+            if (Random.nextFloat() > (0.7f - (intensity * 0.1f))) {
+                val branchPath = Path()
+                branchPath.moveTo(currentX, currentY)
+                
+                var branchX = currentX
+                var branchY = currentY
+                
+                val branchSegments = Random.nextInt(2, (5 * intensity).toInt().coerceAtLeast(2))
+                repeat(branchSegments) {
+                    val branchAngle = Random.nextFloat() * 2 * Math.PI
+                    val branchLength = Random.nextFloat() * 60 + 20 * intensity
+                    
+                    val newBranchX = branchX + (cos(branchAngle) * branchLength).toFloat()
+                    val newBranchY = branchY + (sin(branchAngle) * branchLength).toFloat()
+                    
+                    branchPath.lineTo(newBranchX, newBranchY)
+                    
+                    branchX = newBranchX
+                    branchY = newBranchY
+                }
+                
+                paths.add(branchPath)
+            }
+        }
+        
+        paths.add(path)
+    }
+    
+    return paths
+}
+
+/**
+ * Milisaniye cinsinden zamanı biçimlendirir
+ */
+private fun formatDuration(duration: Long): String {
+    val seconds = (duration / 1000).toInt()
+    val minutes = seconds / 60
+    val remainingSeconds = seconds % 60
+    return String.format("%d:%02d", minutes, remainingSeconds)
+}
+
+@Preview
+@Composable
+fun PlayerScreenPreview() {
+    MaterialTheme {
+        NeonPlayerScreen(
+            songTitle = "Örnek Şarkı",
+            artistName = "Örnek Sanatçı",
+            albumCoverUrl = null
+        )
+    }
+}
+
+// Ekran tiplerini tanımla
+enum class WindowType {
+    Portrait,
+    Landscape
+}
+
+// Pencere boyutunu izleme sınıfı
+@Composable
+fun rememberWindowInfo(): WindowInfo {
+    val configuration = LocalConfiguration.current
+    return remember(configuration) {
+        WindowInfo(
+            orientation = if (configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) 
+                WindowType.Landscape else WindowType.Portrait
+        )
+    }
+}
+
+// Pencere bilgisi sınıfı
+data class WindowInfo(
+    val orientation: WindowType
+) 

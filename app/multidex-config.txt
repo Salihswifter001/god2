@@ -1,0 +1,12 @@
+# Temel Android sınıfları
+com/aihackathonkarisacikartim/god2/MainActivity.class
+com/aihackathonkarisacikartim/god2/MainApplication.class
+
+# R sınıfı tanımlarını dışla, çakışmaları önlemek için
+-com/aihackathonkarisacikartim/god2/R.class
+-com/aihackathonkarisacikartim/god2/R$*.class
+
+# MultiDex sınıfları
+androidx/multidex/MultiDex.class
+androidx/multidex/MultiDexApplication.class
+androidx/multidex/MultiDexExtractor.class 

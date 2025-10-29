@@ -1,0 +1,9 @@
+
+# Temel sınıfları koru
+com/aihackathonkarisacikartim/god2/MainActivity.class
+androidx/multidex/**.class
+
+# R sınıflarını ana DEX'ten dışla
+-com/aihackathonkarisacikartim/god2/R.class
+-com/aihackathonkarisacikartim/god2/R$*.class
+-com/aihackathonkarisacikartim/god2/R$color.class

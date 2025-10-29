@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="100dp"
+    android:height="67dp"
+    android:viewportWidth="1500"
+    android:viewportHeight="1000">
+
+    <!-- Kırmızı Arka Plan -->
+    <path
+        android:fillColor="#E30A17"
+        android:pathData="M0,0h1500v1000h-1500z" />
+
+    <!-- Beyaz Ay -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M750,500m-250,0a250,250 0,1 1,500 0a250,250 0,1 1,-500 0" />
+
+    <!-- Kırmızı Ay (Ön) -->
+    <path
+        android:fillColor="#E30A17"
+        android:pathData="M875,500m-200,0a200,200 0,1 1,400 0a200,200 0,1 1,-400 0" />
+
+    <!-- Beyaz Yıldız -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M956.25,500L982.75,579.5L1066.25,579.5L999,629.15L1025.5,708.5L956.25,658.85L887,708.5L913.5,629.15L846.25,579.5L929.75,579.5z" />
+
+</vector> 

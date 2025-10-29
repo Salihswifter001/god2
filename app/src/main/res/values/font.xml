@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Orbitron yazı tipi stilleri -->
+    <style name="TextAppearance.Orbitron.Regular" parent="android:TextAppearance">
+        <item name="android:fontFamily">@font/orbitron_regular</item>
+    </style>
+    
+    <style name="TextAppearance.Orbitron.Medium" parent="android:TextAppearance">
+        <item name="android:fontFamily">@font/orbitron_medium</item>
+    </style>
+    
+    <style name="TextAppearance.Orbitron.Bold" parent="android:TextAppearance">
+        <item name="android:fontFamily">@font/orbitron_bold</item>
+    </style>
+</resources> 

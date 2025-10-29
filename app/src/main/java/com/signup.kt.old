@@ -1,0 +1,806 @@
+package com
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.*
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.*
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.ExperimentalTextApi
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.aihackathonkarisacikartim.god2.SupabaseManager
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlin.math.PI
+import kotlin.math.sin
+
+@OptIn(
+    ExperimentalTextApi::class, 
+    ExperimentalMaterial3Api::class,
+    androidx.compose.animation.ExperimentalAnimationApi::class,
+    androidx.compose.ui.ExperimentalComposeUiApi::class
+)
+@Composable
+fun OctaSignupScreen(
+    onSignupComplete: (email: String, password: String) -> Unit = { _, _ -> },
+    onNavigateToLogin: () -> Unit = {}
+) {
+    // Orbitron font tanımı (SansSerif fallback olarak kullanılıyor)
+    val orbitronFont = FontFamily.SansSerif
+    
+    // State değişkenleri
+    var email by remember { mutableStateOf("") }
+    var username by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+    var confirmPasswordVisible by remember { mutableStateOf(false) }
+    var signupInProgress by remember { mutableStateOf(false) }
+    var signupSuccess by remember { mutableStateOf(false) }
+    var showElements by remember { mutableStateOf(false) }
+    var signupButtonEnabled by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    
+    // Animasyon elemanları için gerekli state'ler
+    var logoAppeared by remember { mutableStateOf(false) }
+    var formAppeared by remember { mutableStateOf(false) }
+    var buttonAppeared by remember { mutableStateOf(false) }
+    
+    // Animasyon değişkenleri
+    val infiniteTransition = rememberInfiniteTransition(label = "glow")
+    
+    val hue by infiniteTransition.animateFloat(
+        initialValue = 180f, // Mavi tonları için daha düşük bir değer
+        targetValue = 240f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(8000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "hue"
+    )
+    
+    val glowIntensity by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "glowIntensity"
+    )
+    
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = EaseInOutQuad),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse"
+    )
+    
+    // Coroutine scope, focus yönetimi
+    val coroutineScope = rememberCoroutineScope()
+    val focusManager = LocalFocusManager.current
+    val (emailFocusRequester, usernameFocusRequester, passwordFocusRequester, confirmPasswordFocusRequester) = remember { 
+        FocusRequester.createRefs() 
+    }
+    
+    // Form validation kontrolü
+    LaunchedEffect(email, username, password, confirmPassword) {
+        signupButtonEnabled = email.isNotBlank() && 
+                              username.isNotBlank() && 
+                              password.isNotBlank() && 
+                              confirmPassword.isNotBlank() &&
+                              password == confirmPassword
+    }
+    
+    // Animasyonları başlat
+    LaunchedEffect(Unit) {
+        delay(300)
+        showElements = true
+        delay(500)
+        logoAppeared = true
+        delay(800)
+        formAppeared = true
+        delay(500)
+        buttonAppeared = true
+    }
+    
+    // Kayıt işlevi
+    fun performSignup() {
+        if (!signupButtonEnabled || signupInProgress) return
+        
+        // Şifre kontrolü
+        if (password != confirmPassword) {
+            errorMessage = "Şifreler eşleşmiyor"
+            return
+        }
+        
+        focusManager.clearFocus()
+        coroutineScope.launch {
+            signupInProgress = true
+            errorMessage = null
+            
+            // Supabase ile gerçek kayıt işlemi - kullanıcı adı da dahil
+            val supabaseManager = SupabaseManager()
+            val result = supabaseManager.register(email, username, password)
+            
+            if (result.isSuccess) {
+                signupSuccess = true
+                delay(800)
+                // Başarılı kayıt sonrası callback
+                onSignupComplete(email, password)
+            } else {
+                // Kayıt hatasını göster
+                signupSuccess = false
+                val errorMsg = result.exceptionOrNull()?.message ?: ""
+                errorMessage = when {
+                    errorMsg.contains("already") -> "Bu e-posta adresi zaten kullanılıyor"
+                    errorMsg.contains("invalid") -> "Geçersiz e-posta adresi veya şifre"
+                    errorMsg.contains("doğrulayıp") -> {
+                        // Başarılı kayıt ama e-posta doğrulama gerekiyor
+                        signupSuccess = true
+                        "Kayıt başarılı! E-posta kutunuzu kontrol edin ve hesabınızı doğrulayın."
+                    }
+                    else -> "Kayıt işlemi tamamlandı. Şimdi giriş yapabilirsiniz."
+                }
+            }
+            
+            signupInProgress = false
+        }
+    }
+    
+    // Glow faktörü hesaplama
+    val getGlowFactor = { offset: Float ->
+        val factor = (sin((PI * 2 * (glowIntensity + offset) % 1).toDouble()).toFloat() + 1f) / 2f * 0.6f + 0.4f
+        factor.coerceIn(0.0f, 1.0f)
+    }
+    
+    // Ana container
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black),
+        contentAlignment = Alignment.Center
+    ) {
+        // Arkaplan efektleri
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .blur(30.dp)
+        ) {
+            // Merkez radyal gradyan
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        Color.hsv(hue, 1f, 0.25f).copy(alpha = 0.2f),
+                        Color.Transparent
+                    ),
+                    center = center,
+                    radius = size.minDimension * 0.5f
+                ),
+                center = center,
+                radius = size.minDimension * 0.5f
+            )
+            
+            // Sağ üst köşe parlaması
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        Color.hsv(hue + 30, 1f, 0.3f).copy(alpha = 0.15f),
+                        Color.Transparent
+                    )
+                ),
+                center = Offset(size.width * 0.8f, size.height * 0.2f),
+                radius = size.minDimension * 0.3f
+            )
+            
+            // Sol alt köşe parlaması
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        Color.hsv(hue - 30, 1f, 0.3f).copy(alpha = 0.15f),
+                        Color.Transparent
+                    )
+                ),
+                center = Offset(size.width * 0.2f, size.height * 0.8f),
+                radius = size.minDimension * 0.3f
+            )
+        }
+        
+        // Ana içerik
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Logo
+            AnimatedVisibility(
+                visible = showElements && logoAppeared,
+                enter = fadeIn(tween(1000)) + slideInVertically(
+                    initialOffsetY = { -50 },
+                    animationSpec = tween(1000)
+                ),
+                exit = fadeOut()
+            ) {
+                Box(
+                    modifier = Modifier.padding(bottom = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Logo container
+                    Box(
+                        modifier = Modifier
+                            .size(90.dp)
+                            .scale(if (signupSuccess) 1.2f else pulseScale)
+                            .clip(CircleShape)
+                            .background(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(
+                                        Color.hsv(hue, 0.7f, 0.1f),
+                                        Color.Black
+                                    )
+                                )
+                            )
+                            .border(
+                                width = 1.dp,
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        Color.hsv(hue, 1f, 0.7f).copy(alpha = getGlowFactor(0f) * 0.7f),
+                                        Color.hsv(hue + 30, 1f, 0.5f).copy(alpha = getGlowFactor(0.3f) * 0.5f),
+                                        Color.hsv(hue, 1f, 0.7f).copy(alpha = getGlowFactor(0.6f) * 0.7f)
+                                    )
+                                ),
+                                shape = CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        // Logo metni
+                        Text(
+                            text = "OCTA",
+                            style = TextStyle(
+                                fontSize = 18.sp,
+                                fontFamily = orbitronFont,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center,
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.hsv(hue - 10, 1f, 0.95f),
+                                        Color.hsv(hue, 1f, 0.8f),
+                                        Color.hsv(hue + 10, 1f, 0.6f)
+                                    )
+                                )
+                            )
+                        )
+                    }
+                    
+                    // Dış parlama efekti
+                    Box(
+                        modifier = Modifier
+                            .size(110.dp)
+                            .blur(20.dp)
+                            .clip(CircleShape)
+                            .drawBehind {
+                                drawCircle(
+                                    brush = Brush.radialGradient(
+                                        colors = listOf(
+                                            Color.hsv(hue, 1f, 0.7f).copy(alpha = getGlowFactor(0f) * 0.3f),
+                                            Color.Transparent
+                                        )
+                                    ),
+                                    radius = size.minDimension / 2
+                                )
+                            }
+                    )
+                }
+            }
+            
+            // Hoş geldiniz mesajı
+            AnimatedVisibility(
+                visible = showElements && logoAppeared,
+                enter = fadeIn(tween(1000, delayMillis = 300)),
+                exit = fadeOut()
+            ) {
+                Text(
+                    text = "OCTA'ya Kayıt Ol",
+                    style = TextStyle(
+                        fontSize = 24.sp,
+                        fontFamily = orbitronFont,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color.White,
+                                Color.hsv(hue, 0.5f, 0.9f)
+                            )
+                        )
+                    ),
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
+            
+            // Kayıt formu
+            AnimatedVisibility(
+                visible = showElements && formAppeared,
+                enter = fadeIn(tween(800)) + slideInVertically(
+                    initialOffsetY = { 100 },
+                    animationSpec = tween(1000)
+                ),
+                exit = fadeOut()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth(0.85f)
+                        .padding(vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Email alanı
+                    TextField(
+                        value = email,
+                        onValueChange = { email = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(emailFocusRequester)
+                            .shadow(
+                                elevation = 2.dp,
+                                shape = RoundedCornerShape(12.dp),
+                                spotColor = Color.hsv(hue, 1f, 0.7f).copy(alpha = getGlowFactor(0.1f) * 0.3f)
+                            )
+                            .background(
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.hsv(hue, 0.3f, 0.1f),
+                                        Color.hsv(hue, 0.2f, 0.05f)
+                                    )
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            ),
+                        label = {
+                            Text(
+                                "E-posta",
+                                color = Color.hsv(hue, 0.5f, 0.8f),
+                                fontFamily = orbitronFont,
+                                fontSize = 14.sp
+                            )
+                        },
+                        textStyle = TextStyle(
+                            color = Color.White,
+                            fontFamily = orbitronFont,
+                            fontSize = 16.sp
+                        ),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Email,
+                            imeAction = ImeAction.Next
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onNext = { usernameFocusRequester.requestFocus() }
+                        ),
+                        colors = TextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            disabledTextColor = Color.Gray,
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            disabledContainerColor = Color.Transparent,
+                            focusedIndicatorColor = Color.hsv(hue, 1f, 0.7f),
+                            unfocusedIndicatorColor = Color.hsv(hue, 0.5f, 0.5f).copy(alpha = 0.5f),
+                            focusedLabelColor = Color.hsv(hue, 0.7f, 0.9f),
+                            unfocusedLabelColor = Color.hsv(hue, 0.5f, 0.8f),
+                            cursorColor = Color.hsv(hue, 1f, 0.8f)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    
+                    // Kullanıcı adı alanı
+                    TextField(
+                        value = username,
+                        onValueChange = { username = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(usernameFocusRequester)
+                            .shadow(
+                                elevation = 2.dp,
+                                shape = RoundedCornerShape(12.dp),
+                                spotColor = Color.hsv(hue, 1f, 0.7f).copy(alpha = getGlowFactor(0.15f) * 0.3f)
+                            )
+                            .background(
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.hsv(hue, 0.3f, 0.1f),
+                                        Color.hsv(hue, 0.2f, 0.05f)
+                                    )
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            ),
+                        label = {
+                            Text(
+                                "Kullanıcı Adı",
+                                color = Color.hsv(hue, 0.5f, 0.8f),
+                                fontFamily = orbitronFont,
+                                fontSize = 14.sp
+                            )
+                        },
+                        textStyle = TextStyle(
+                            color = Color.White,
+                            fontFamily = orbitronFont,
+                            fontSize = 16.sp
+                        ),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Text,
+                            imeAction = ImeAction.Next
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onNext = { passwordFocusRequester.requestFocus() }
+                        ),
+                        colors = TextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            disabledTextColor = Color.Gray,
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            disabledContainerColor = Color.Transparent,
+                            focusedIndicatorColor = Color.hsv(hue, 1f, 0.7f),
+                            unfocusedIndicatorColor = Color.hsv(hue, 0.5f, 0.5f).copy(alpha = 0.5f),
+                            focusedLabelColor = Color.hsv(hue, 0.7f, 0.9f),
+                            unfocusedLabelColor = Color.hsv(hue, 0.5f, 0.8f),
+                            cursorColor = Color.hsv(hue, 1f, 0.8f)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    
+                    // Şifre alanı
+                    TextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(passwordFocusRequester)
+                            .shadow(
+                                elevation = 2.dp,
+                                shape = RoundedCornerShape(12.dp),
+                                spotColor = Color.hsv(hue, 1f, 0.7f).copy(alpha = getGlowFactor(0.2f) * 0.3f)
+                            )
+                            .background(
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.hsv(hue, 0.3f, 0.1f),
+                                        Color.hsv(hue, 0.2f, 0.05f)
+                                    )
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            ),
+                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        label = {
+                            Text(
+                                "Şifre",
+                                color = Color.hsv(hue, 0.5f, 0.8f),
+                                fontFamily = orbitronFont,
+                                fontSize = 14.sp
+                            )
+                        },
+                        textStyle = TextStyle(
+                            color = Color.White,
+                            fontFamily = orbitronFont,
+                            fontSize = 16.sp
+                        ),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Next
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onNext = { confirmPasswordFocusRequester.requestFocus() }
+                        ),
+                        trailingIcon = {
+                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                Icon(
+                                    imageVector = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                                    contentDescription = if (passwordVisible) "Şifreyi gizle" else "Şifreyi göster",
+                                    tint = Color.hsv(hue, 0.5f, 0.8f)
+                                )
+                            }
+                        },
+                        colors = TextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            disabledTextColor = Color.Gray,
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            disabledContainerColor = Color.Transparent,
+                            focusedIndicatorColor = Color.hsv(hue, 1f, 0.7f),
+                            unfocusedIndicatorColor = Color.hsv(hue, 0.5f, 0.5f).copy(alpha = 0.5f),
+                            focusedLabelColor = Color.hsv(hue, 0.7f, 0.9f),
+                            unfocusedLabelColor = Color.hsv(hue, 0.5f, 0.8f),
+                            cursorColor = Color.hsv(hue, 1f, 0.8f)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    
+                    // Şifre onay alanı
+                    TextField(
+                        value = confirmPassword,
+                        onValueChange = { confirmPassword = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(confirmPasswordFocusRequester)
+                            .shadow(
+                                elevation = 2.dp,
+                                shape = RoundedCornerShape(12.dp),
+                                spotColor = Color.hsv(hue, 1f, 0.7f).copy(alpha = getGlowFactor(0.25f) * 0.3f)
+                            )
+                            .background(
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.hsv(hue, 0.3f, 0.1f),
+                                        Color.hsv(hue, 0.2f, 0.05f)
+                                    )
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            ),
+                        visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        label = {
+                            Text(
+                                "Şifre Tekrar",
+                                color = Color.hsv(hue, 0.5f, 0.8f),
+                                fontFamily = orbitronFont,
+                                fontSize = 14.sp
+                            )
+                        },
+                        textStyle = TextStyle(
+                            color = Color.White,
+                            fontFamily = orbitronFont,
+                            fontSize = 16.sp
+                        ),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onDone = {
+                                focusManager.clearFocus()
+                                if (signupButtonEnabled) {
+                                    performSignup()
+                                }
+                            }
+                        ),
+                        trailingIcon = {
+                            IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
+                                Icon(
+                                    imageVector = if (confirmPasswordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                                    contentDescription = if (confirmPasswordVisible) "Şifreyi gizle" else "Şifreyi göster",
+                                    tint = Color.hsv(hue, 0.5f, 0.8f)
+                                )
+                            }
+                        },
+                        colors = TextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            disabledTextColor = Color.Gray,
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            disabledContainerColor = Color.Transparent,
+                            focusedIndicatorColor = Color.hsv(hue, 1f, 0.7f),
+                            unfocusedIndicatorColor = Color.hsv(hue, 0.5f, 0.5f).copy(alpha = 0.5f),
+                            focusedLabelColor = Color.hsv(hue, 0.7f, 0.9f),
+                            unfocusedLabelColor = Color.hsv(hue, 0.5f, 0.8f),
+                            cursorColor = Color.hsv(hue, 1f, 0.8f)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    
+                    // Hata mesajı
+                    if (errorMessage != null) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp)
+                                .background(
+                                    brush = Brush.linearGradient(
+                                        colors = listOf(
+                                            Color.hsv(hue, 0.2f, 0.1f),
+                                            Color.hsv(hue, 0.3f, 0.15f)
+                                        )
+                                    ),
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .border(
+                                    width = 1.dp,
+                                    brush = Brush.linearGradient(
+                                        colors = listOf(
+                                            Color.hsv(hue, 0.8f, 0.6f).copy(alpha = 0.7f),
+                                            Color.hsv(hue, 0.9f, 0.7f).copy(alpha = 0.5f)
+                                        )
+                                    ),
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Info,
+                                contentDescription = "Bilgi",
+                                tint = Color.hsv(hue, 0.9f, 0.9f),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = errorMessage!!,
+                                color = Color.hsv(hue, 0.3f, 0.9f),
+                                fontFamily = orbitronFont,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    // Kayıt ol butonu
+                    AnimatedVisibility(
+                        visible = showElements && buttonAppeared,
+                        enter = fadeIn(tween(800)) + slideInVertically(
+                            initialOffsetY = { 50 },
+                            animationSpec = tween(1000, delayMillis = 300)
+                        ),
+                        exit = fadeOut()
+                    ) {
+                        Button(
+                            onClick = { performSignup() },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp)
+                                .shadow(
+                                    elevation = 8.dp,
+                                    spotColor = Color.hsv(hue, 1f, 0.8f).copy(alpha = getGlowFactor(0f) * 0.5f),
+                                    shape = RoundedCornerShape(16.dp)
+                                ),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.Transparent,
+                                contentColor = Color.White,
+                                disabledContainerColor = Color.Gray.copy(alpha = 0.3f),
+                                disabledContentColor = Color.Gray
+                            ),
+                            enabled = signupButtonEnabled && !signupInProgress,
+                            contentPadding = PaddingValues(0.dp),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        brush = Brush.linearGradient(
+                                            colors = if (signupButtonEnabled) {
+                                                listOf(
+                                                    Color.hsv(hue, 0.8f, 0.3f),
+                                                    Color.hsv(hue + 20, 0.9f, 0.4f)
+                                                )
+                                            } else {
+                                                listOf(
+                                                    Color.Gray.copy(alpha = 0.5f),
+                                                    Color.Gray.copy(alpha = 0.3f)
+                                                )
+                                            }
+                                        )
+                                    )
+                                    .border(
+                                        width = 1.dp,
+                                        brush = Brush.linearGradient(
+                                            colors = listOf(
+                                                Color.hsv(hue, 1f, 0.8f).copy(alpha = getGlowFactor(0f) * 0.8f),
+                                                Color.hsv(hue + 40, 1f, 0.9f).copy(alpha = getGlowFactor(0.5f) * 0.6f)
+                                            )
+                                        ),
+                                        shape = RoundedCornerShape(16.dp)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (signupInProgress) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        color = Color.White,
+                                        strokeWidth = 2.dp
+                                    )
+                                } else if (signupSuccess) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Check,
+                                        contentDescription = "Başarılı",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                } else {
+                                    Text(
+                                        text = "KAYIT OL",
+                                        style = TextStyle(
+                                            fontSize = 16.sp,
+                                            fontFamily = orbitronFont,
+                                            fontWeight = FontWeight.Bold,
+                                            letterSpacing = 1.sp
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Giriş yap bağlantısı
+                    AnimatedVisibility(
+                        visible = showElements && buttonAppeared,
+                        enter = fadeIn(tween(800, delayMillis = 500)),
+                        exit = fadeOut()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Zaten hesabın var mı?",
+                                style = TextStyle(
+                                    fontSize = 14.sp,
+                                    fontFamily = orbitronFont,
+                                    color = Color.hsv(hue, 0.2f, 0.8f)
+                                )
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Giriş Yap",
+                                style = TextStyle(
+                                    fontSize = 14.sp,
+                                    fontFamily = orbitronFont,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.hsv(hue, 0.8f, 0.9f)
+                                ),
+                                modifier = Modifier.clickable { onNavigateToLogin() }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+} 

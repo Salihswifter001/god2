@@ -1,0 +1,476 @@
+package com.splash
+
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.*
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.text.ExperimentalTextApi
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import androidx.compose.ui.platform.LocalContext
+import com.settings.SessionManager
+import com.settings.LanguageManager
+//import com.settings.Language
+//import com.settings.LanguageState
+import kotlinx.coroutines.delay
+//import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.launch
+import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.sin
+
+private const val PI_FLOAT = 3.1415927f
+private val NeonPink = Color(255, 0, 153)
+private val DeepBlack = Color(5, 0, 10)
+
+// Temaya uygun renkler
+private val NeonBlue = Color(0xFF60A5FA)
+private val DeepBlue = Color(0xFF3B82F6)
+private val DarkerBlue = Color(0xFF1E40AF)
+private val NeonPurple = Color(0xFF8B5CF6)
+
+@OptIn(ExperimentalTextApi::class)
+@Composable
+fun SplashScreen(
+    navController: NavController,
+    onNavigateToLanguageSelection: () -> Unit,
+    onNavigateToStartScreen: () -> Unit
+) {
+    val context = LocalContext.current
+    val sessionManager = SessionManager(context)
+    var showLogo by remember { mutableStateOf(false) }
+    var showText by remember { mutableStateOf(false) }
+    var showAccent by remember { mutableStateOf(false) }
+    var showWaves by remember { mutableStateOf(false) }
+    
+    // Animasyon kontrolü - Sıralı animasyonlar
+    LaunchedEffect(key1 = true) {
+        delay(100)
+        showLogo = true
+        
+        delay(300)
+        showAccent = true
+        
+        delay(300)
+        showWaves = true
+        
+        delay(300)
+        showText = true
+        
+        delay(2000)
+        
+        // Dil durumunu kontrol et
+        val languageManager = LanguageManager(context)
+        if (languageManager.isFirstLaunch()) {
+            // İlk açılış ise dil seçim ekranına yönlendir
+            onNavigateToLanguageSelection()
+        } else {
+            // Oturum durumunu kontrol et
+            if (sessionManager.isLoggedIn()) {
+                // Kullanıcı daha önce giriş yapmışsa doğrudan ana ekrana yönlendir
+                navController.navigate("music_creator") {
+                    popUpTo("splash_screen") { inclusive = true }
+                }
+            } else {
+                // Kullanıcı giriş yapmamışsa giriş ekranına yönlendir
+                onNavigateToStartScreen()
+            }
+        }
+    }
+    
+    // Animasyon değerleri
+    val logoScale by animateFloatAsState(
+        targetValue = if (showLogo) 1f else 0f,
+        animationSpec = tween(
+            durationMillis = 600,
+            easing = EaseOutBack
+        ),
+        label = "logoScale"
+    )
+    
+    val accentAlpha by animateFloatAsState(
+        targetValue = if (showAccent) 1f else 0f,
+        animationSpec = tween(
+            durationMillis = 500,
+            easing = LinearEasing
+        ),
+        label = "accentAlpha"
+    )
+    
+    val textAlpha by animateFloatAsState(
+        targetValue = if (showText) 1f else 0f,
+        animationSpec = tween(
+            durationMillis = 500,
+            easing = LinearEasing
+        ),
+        label = "textAlpha"
+    )
+    
+    // Sonsuz animasyonlar
+    val infiniteTransition = rememberInfiniteTransition(label = "infinite")
+    
+    val pulseEffect by infiniteTransition.animateFloat(
+        initialValue = 0.97f,
+        targetValue = 1.03f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = EaseInOutSine),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse"
+    )
+    
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(10000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "rotation"
+    )
+    
+    val waveAnimation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "wave"
+    )
+    
+    // Ana container
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        DeepBlack,
+                        Color(0xFF0F172A),
+                        Color(0xFF1E293B)
+                    )
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        // Arka plan efekti - musicgen temasına benzer
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .alpha(0.4f)
+        ) {
+            // Izgara deseni
+            val strokeWidth = 0.5f
+            val spacing = 40.dp.toPx()
+            
+            // Yatay çizgiler
+            for (i in 0..(size.height / spacing).toInt()) {
+                drawLine(
+                    color = Color.White.copy(alpha = 0.04f),
+                    start = Offset(0f, i * spacing),
+                    end = Offset(size.width, i * spacing),
+                    strokeWidth = strokeWidth
+                )
+            }
+            
+            // Dikey çizgiler
+            for (i in 0..(size.width / spacing).toInt()) {
+                drawLine(
+                    color = Color.White.copy(alpha = 0.04f),
+                    start = Offset(i * spacing, 0f),
+                    end = Offset(i * spacing, size.height),
+                    strokeWidth = strokeWidth
+                )
+            }
+            
+            // Arkada hareketli gradient
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        NeonBlue.copy(alpha = 0.1f),
+                        DeepBlue.copy(alpha = 0.05f),
+                        Color.Transparent,
+                    )
+                ),
+                radius = size.width * 0.6f,
+                center = Offset(
+                    x = size.width * (0.3f + cos(rotation * PI.toFloat() / 180f) * 0.1f),
+                    y = size.height * (0.4f + sin(rotation * PI.toFloat() / 180f) * 0.1f)
+                )
+            )
+            
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        NeonPurple.copy(alpha = 0.1f),
+                        DarkerBlue.copy(alpha = 0.05f),
+                        Color.Transparent,
+                    )
+                ),
+                radius = size.width * 0.4f,
+                center = Offset(
+                    x = size.width * (0.7f - cos(rotation * PI.toFloat() / 180f) * 0.1f),
+                    y = size.height * (0.6f - sin(rotation * PI.toFloat() / 180f) * 0.1f)
+                )
+            )
+        }
+        
+        // Aksan halkalar
+        if (showAccent) {
+            Canvas(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .alpha(accentAlpha * 0.7f)
+            ) {
+                // Dairesel halkalar
+                rotate(rotation) {
+                    // Dış halka
+                    drawCircle(
+                        color = NeonBlue.copy(alpha = 0.2f),
+                        radius = size.minDimension * 0.4f,
+                        center = Offset(size.width / 2, size.height / 2),
+                        style = Stroke(width = 2.dp.toPx())
+                    )
+                    
+                    // İç halka
+                    drawCircle(
+                        color = DeepBlue.copy(alpha = 0.15f),
+                        radius = size.minDimension * 0.35f,
+                        center = Offset(size.width / 2, size.height / 2),
+                        style = Stroke(
+                            width = 1.5f,
+                            pathEffect = PathEffect.dashPathEffect(
+                                floatArrayOf(10f, 10f),
+                                phase = rotation / 10
+                            )
+                        )
+                    )
+                }
+            }
+        }
+        
+        // Ana içerik
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.scale(pulseEffect)
+        ) {
+            // Logo
+            Box(
+                modifier = Modifier
+                    .size(120.dp)
+                    .scale(logoScale)
+                    .background(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                Color(0xFF1E293B),
+                                DeepBlack
+                            )
+                        ),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                // Logo ışıması
+                Canvas(
+                    modifier = Modifier.matchParentSize()
+                ) {
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                NeonBlue.copy(alpha = 0.3f),
+                                Color.Transparent
+                            )
+                        ),
+                        radius = size.minDimension * 0.3f
+                    )
+                }
+                
+                // İç halka
+                Box(
+                    modifier = Modifier
+                        .size(90.dp)
+                        .clip(CircleShape)
+                        .border(
+                            width = 1.dp,
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    NeonBlue.copy(alpha = 0.8f),
+                                    DeepBlue.copy(alpha = 0.3f),
+                                    NeonPurple.copy(alpha = 0.5f)
+                                )
+                            ),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Müzik ikonu
+                    Icon(
+                        imageVector = Icons.Rounded.MusicNote,
+                        contentDescription = "Music",
+                        tint = NeonBlue,
+                        modifier = Modifier
+                            .size(50.dp)
+                            .shadow(
+                                elevation = 8.dp,
+                                spotColor = NeonBlue,
+                                shape = CircleShape
+                            )
+                    )
+                    
+                    // Animasyonlu halka
+                    if (showWaves) {
+                        Canvas(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .alpha(0.7f)
+                        ) {
+                            // Ses dalgaları
+                            for (i in 0 until 8) {
+                                val angle = (i * 45 + rotation) % 360
+                                val radian = angle * PI.toFloat() / 180f
+                                val waveOffset = (sin(radian * 3 + waveAnimation * 2 * PI.toFloat()) + 1) / 2
+                                val radius = size.minDimension * 0.35f
+                                val length = radius * 0.3f * waveOffset
+                                
+                                val startX = size.width / 2 + radius * cos(radian)
+                                val startY = size.height / 2 + radius * sin(radian)
+                                val endX = startX + length * cos(radian)
+                                val endY = startY + length * sin(radian)
+                                
+                                drawLine(
+                                    brush = Brush.linearGradient(
+                                        colors = listOf(
+                                            NeonBlue.copy(alpha = 0.7f),
+                                            NeonBlue.copy(alpha = 0f)
+                                        ),
+                                        start = Offset(startX, startY),
+                                        end = Offset(endX, endY)
+                                    ),
+                                    start = Offset(startX, startY),
+                                    end = Offset(endX, endY),
+                                    strokeWidth = 2f
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            // Ekolayzer benzeri dalga efekti
+            if (showWaves) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier
+                        .width(160.dp)
+                        .height(24.dp)
+                        .alpha(accentAlpha)
+                ) {
+                    repeat(8) { i ->
+                        val barHeight = remember(i) { 
+                            Animatable(0.3f + (i % 3) * 0.2f) 
+                        }
+                        
+                        LaunchedEffect(waveAnimation) {
+                            val targetHeight = 0.3f + 0.7f * (sin(waveAnimation * 2 * PI.toFloat() + i * 0.5f) + 1) / 2
+                            barHeight.animateTo(
+                                targetValue = targetHeight,
+                                animationSpec = tween(
+                                    durationMillis = 500,
+                                    easing = LinearEasing
+                                )
+                            )
+                        }
+                        
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(barHeight.value)
+                                .clip(RoundedCornerShape(1.dp))
+                                .background(
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(
+                                            NeonBlue,
+                                            DeepBlue.copy(alpha = 0.7f)
+                                        )
+                                    )
+                                )
+                        )
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            // Uygulama ismi ve sloganı
+            AnimatedVisibility(
+                visible = showText,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut()
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "OctaAI",
+                        style = TextStyle(
+                            fontSize = 40.sp,
+                            fontWeight = FontWeight.Bold,
+                            brush = Brush.horizontalGradient(
+                                colors = listOf(
+                                    Color.White,
+                                    NeonBlue
+                                )
+                            ),
+                            fontFamily = FontFamily.SansSerif,
+                            shadow = Shadow(
+                                color = NeonBlue.copy(alpha = 0.7f),
+                                blurRadius = 10f
+                            )
+                        )
+                    )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Text(
+                        text = "Fikirlerinizi frekansa dönüştürün",
+                        style = TextStyle(
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF94A3B8),
+                            letterSpacing = 2.sp
+                        )
+                    )
+                }
+            }
+        }
+    }
+}
+
+// Renk karıştırma yardımcı fonksiyonu
+fun lerp(start: Float, stop: Float, fraction: Float): Float {
+    return start + (stop - start) * fraction
+}                                                   
